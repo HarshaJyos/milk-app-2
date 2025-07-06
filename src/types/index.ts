@@ -82,12 +82,13 @@ export interface Vendor {
       close: string; // ISO 8601 time
     }>;
   };
-  uniqueId: string; // Indexed, unique
-  qrCode: {
+  uniqueId?: string; // Auto-generated, unique
+  qrCode?: {
     url: string; // Azure Blob Storage URL
     generatedAt: Date;
     expiresAt?: Date;
   };
+  lastLogin?: Date;
   deliverySlots: Array<{
     slot: "morning" | "afternoon" | "evening";
     cutoffTime: string; // ISO 8601 time
@@ -367,6 +368,7 @@ export interface Review {
 export interface Admin {
   _id: ObjectId;
   email: string;
+  name?: string;
   passwordHash: string; // Encrypted
   role: "super_admin" | "support" | "finance" | "operations";
   permissions: string[];
@@ -387,11 +389,13 @@ export interface AuditLog {
   action:
     | "vendor_approved"
     | "vendor_suspended"
+    | "vendor_updated"
     | "payout_processed"
     | "customer_updated"
     | "order_cancelled"
     | "complaint_resolved"
     | "payment_processed"
+    | "admin_updated"
     | "subscription_updated";
   performedBy: ObjectId;
   targetId?: ObjectId;
@@ -401,6 +405,7 @@ export interface AuditLog {
     | "delivery"
     | "billing"
     | "payout"
+    | "admin"
     | "subscription";
   details: {
     before?: Record<string, any>;

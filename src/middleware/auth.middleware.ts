@@ -1,9 +1,11 @@
+//src/middleware/auth.middleware.ts
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
+import jwt from "jsonwebtoken";
 import { redisClient } from "../config/redis";
 import { config } from "../config";
 import { logger } from "../utils/logger";
+import { CustomerModel, VendorModel, AdminModel } from "../models";
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -12,31 +14,29 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
-// Validate JWT
-export const authenticateJWT = async (
+export const authenticate = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    res.status(StatusCodes.UNAUTHORIZED).json({
-      success: false,
-      error: "No token provided",
-    });
-    return;
-  }
-
-  const token = authHeader.split(" ")[1];
   try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      res.status(StatusCodes.UNAUTHORIZED).json({
+        success: false,
+        error: "No token provided",
+      });
+      return;
+    }
+
     const decoded = jwt.verify(token, config.jwt.secret as string) as {
       id: string;
-      role: "customer" | "vendor" | "admin" | "super_admin";
+      role: string;
     };
-    const sessionKey = `session:${decoded.role}:${decoded.id}`;
-    const session = await redisClient.get(sessionKey);
-
-    if (!session || session !== token) {
+    const sessionToken = await redisClient.get(
+      `session:${decoded.role}:${decoded.id}`
+    );
+    if (!sessionToken || sessionToken !== token) {
       res.status(StatusCodes.UNAUTHORIZED).json({
         success: false,
         error: "Invalid or expired session",
@@ -44,13 +44,48 @@ export const authenticateJWT = async (
       return;
     }
 
-    req.user = {
-      id: decoded.id,
-      role: decoded.role,
-    };
+    let user;
+    if (decoded.role === "customer") {
+      user = await CustomerModel.findById(decoded.id);
+    } else if (decoded.role === "vendor") {
+      user = await VendorModel.findById(decoded.id);
+    } else {
+      user = await AdminModel.findById(decoded.id);
+    }
+
+    if (
+      !user ||
+      (decoded.role === "vendor" && user.status !== "approved") ||
+      user.status !== "active"
+    ) {
+      await redisClient.del(`session:${decoded.role}:${decoded.id}`);
+      res.status(StatusCodes.UNAUTHORIZED).json({
+        success: false,
+        error: "User not found or inactive",
+      });
+      return;
+    }
+
+    // Check if token is near expiry (within 10 minutes)
+    const { exp } = decoded as any;
+    if (exp && Date.now() >= exp * 1000 - 10 * 60 * 1000) {
+      const newToken = jwt.sign(
+        { id: decoded.id, role: decoded.role },
+        config.jwt.secret as string,
+        { expiresIn: config.jwt.expiresIn }
+      );
+      await redisClient.setEx(
+        `session:${decoded.role}:${decoded.id}`,
+        24 * 60 * 60,
+        newToken
+      );
+      res.setHeader("X-New-Token", newToken);
+    }
+
+    req.user = { id: decoded.id, role: decoded.role as any };
     next();
   } catch (error) {
-    logger.error("JWT validation error:", error);
+    logger.error("Authentication error:", error);
     res.status(StatusCodes.UNAUTHORIZED).json({
       success: false,
       error: "Invalid token",
@@ -58,8 +93,7 @@ export const authenticateJWT = async (
   }
 };
 
-// Role-based access control
-export const restrictTo = (...roles: string[]) => {
+export const authorize = (roles: string[]) => {
   return (
     req: AuthenticatedRequest,
     res: Response,
@@ -68,38 +102,10 @@ export const restrictTo = (...roles: string[]) => {
     if (!req.user || !roles.includes(req.user.role)) {
       res.status(StatusCodes.FORBIDDEN).json({
         success: false,
-        error: "Access denied",
+        error: "Insufficient permissions",
       });
       return;
     }
-    next();
-  };
-};
-
-// Rate limiting for OTP and login
-export const rateLimit = (
-  type: "otp" | "login",
-  limit: number,
-  windowMs: number
-) => {
-  return async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
-    const key = `rate:${type}:${req.ip}`;
-    const current = await redisClient.get(key);
-    const count = current ? parseInt(current) : 0;
-
-    if (count >= limit) {
-      res.status(StatusCodes.TOO_MANY_REQUESTS).json({
-        success: false,
-        error: "Too many requests, try again later",
-      });
-      return;
-    }
-
-    await redisClient.setEx(key, windowMs / 1000, (count + 1).toString());
     next();
   };
 };

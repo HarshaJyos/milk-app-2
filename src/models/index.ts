@@ -1,4 +1,3 @@
-//src/models/index.ts
 import { Schema, model, Document } from "mongoose";
 import { z } from "zod";
 import {
@@ -24,62 +23,83 @@ export const CustomerZodSchema = z.object({
     .regex(/^\+[0-9]{10,12}$/, "Must be a valid E.164 phone number"),
   name: z.string().min(1, "Name is required"),
   email: z.string().email().optional(),
-  address: z.object({
-    street: z.string().min(1, "Street is required"),
-    city: z.string().min(1, "City is required"),
-    state: z.string().min(1, "State is required"),
-    postalCode: z.string().min(1, "Postal code is required"),
-    coordinates: z.object({
-      type: z.literal("Point"),
-      coordinates: z.tuple([z.number(), z.number()]),
-    }),
-    formattedAddress: z.string().optional(),
-    deliveryInstructions: z.string().optional(),
-  }),
+  coordinates: z
+    .object({
+      latitude: z.number(),
+      longitude: z.number(),
+    })
+    .optional(),
+  address: z
+    .object({
+      street: z.string().min(1, "Street is required"),
+      city: z.string().min(1, "City is required"),
+      state: z.string().min(1, "State is required"),
+      postalCode: z.string().min(1, "Postal code is required"),
+      coordinates: z.object({
+        type: z.literal("Point"),
+        coordinates: z.tuple([z.number(), z.number()]),
+      }),
+      formattedAddress: z.string().optional(),
+      deliveryInstructions: z.string().optional(),
+    })
+    .optional(),
   vendorIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/)).optional(),
-  deliveryPreferences: z.object({
-    timeSlot: z.enum(["morning", "afternoon", "evening"]),
-    nonDeliveryDays: z.array(z.date()).optional(),
-    vacationPeriods: z
-      .array(
-        z.object({
-          startDate: z.date(),
-          endDate: z.date(),
-          status: z.enum(["active", "completed", "cancelled"]),
-        })
-      )
-      .optional(),
-    preferredProducts: z
-      .array(
-        z.object({
-          productId: z.string().regex(/^[0-9a-fA-F]{24}$/),
-          quantity: z.number().min(1),
-          frequency: z.enum(["daily", "weekly", "biweekly", "monthly"]),
-          subscriptionId: z.string().optional(),
-        })
-      )
-      .optional(),
-  }),
-  language: z.string().regex(/^[a-z]{2}$/, "Must be a valid ISO 639-1 code"),
+  deliveryPreferences: z
+    .object({
+      timeSlot: z.enum(["morning", "afternoon", "evening"]).optional(),
+      nonDeliveryDays: z.array(z.date()).optional(),
+      vacationPeriods: z
+        .array(
+          z.object({
+            startDate: z.date(),
+            endDate: z.date(),
+            status: z.enum(["active", "completed", "cancelled"]),
+          })
+        )
+        .optional(),
+      preferredProducts: z
+        .array(
+          z.object({
+            productId: z.string().regex(/^[0-9a-fA-F]{24}$/),
+            quantity: z.number().min(1),
+            frequency: z.enum(["daily", "weekly", "biweekly", "monthly"]),
+            subscriptionId: z.string().optional(),
+          })
+        )
+        .optional(),
+    })
+    .optional(),
+  language: z
+    .string()
+    .regex(/^[a-z]{2}$/, "Must be a valid ISO 639-1 code")
+    .optional(),
   status: z.enum(["active", "inactive", "suspended"]).default("active"),
-  metadata: z.object({
-    source: z.enum(["qr_scan", "web", "app", "admin"]),
-    verificationStatus: z
-      .enum(["pending", "verified", "failed"])
-      .default("pending"),
-    verificationToken: z.string().optional(),
-    deviceInfo: z
-      .object({
-        deviceId: z.string(),
-        deviceType: z.enum(["ios", "android", "web"]),
-        lastUsed: z.date(),
-      })
-      .optional(),
-    i18n: z.object({
-      timezone: z.string(),
-      currency: z.string().regex(/^[A-Z]{3}$/, "Must be a valid ISO 4217 code"),
-    }),
-  }),
+  metadata: z
+    .object({
+      source: z.enum(["qr_scan", "web", "app", "admin"]).optional(),
+      verificationStatus: z
+        .enum(["pending", "verified", "failed"])
+        .default("pending"),
+      verificationToken: z.string().optional(),
+      deviceInfo: z
+        .object({
+          deviceId: z.string(),
+          deviceType: z.enum(["ios", "android", "web"]),
+          lastUsed: z.date(),
+        })
+        .optional(),
+      i18n: z
+        .object({
+          timezone: z.string(),
+          currency: z
+            .string()
+            .regex(/^[A-Z]{3}$/, "Must be a valid ISO 4217 code"),
+        })
+        .optional(),
+      onboardingSource: z.string().optional(),
+      deviceId: z.string().optional(),
+    })
+    .optional(),
 });
 
 export const VendorZodSchema = z.object({
@@ -113,45 +133,52 @@ export const VendorZodSchema = z.object({
       })
     ),
   }),
-  uniqueId: z.string().min(1, "Unique ID is required"),
-  qrCode: z.object({
-    url: z.string().url(),
-    generatedAt: z.date(),
-    expiresAt: z.date().optional(),
-  }),
-  deliverySlots: z.array(
-    z.object({
-      slot: z.enum(["morning", "afternoon", "evening"]),
-      cutoffTime: z.string(),
-      capacity: z.number().min(0),
-    })
-  ),
+  deliverySlots: z
+    .array(
+      z.object({
+        slot: z.enum(["morning", "afternoon", "evening"]),
+        cutoffTime: z.string(),
+        capacity: z.number().min(0),
+      })
+    )
+    .optional(),
   status: z
     .enum(["pending", "approved", "suspended", "inactive"])
     .default("pending"),
-  verification: z.object({
-    status: z.enum(["pending", "verified", "rejected"]).default("pending"),
-    documents: z.array(
-      z.object({
-        type: z.enum(["license", "tax", "identity"]),
-        url: z.string().url(),
-        uploadedAt: z.date(),
-        verifiedAt: z.date().optional(),
-      })
-    ),
-  }),
-  metadata: z.object({
-    onboardingSource: z.enum(["self", "admin", "referral"]),
-    rating: z.object({
-      average: z.number().min(0).max(5),
-      count: z.number().min(0),
-    }),
-    apiRateLimit: z.object({
-      limit: z.number().min(0),
-      remaining: z.number().min(0),
-      resetAt: z.date(),
-    }),
-  }),
+  verification: z
+    .object({
+      status: z.enum(["pending", "verified", "rejected"]).default("pending"),
+      documents: z
+        .array(
+          z.object({
+            type: z.enum(["license", "tax", "identity"]),
+            url: z.string().url(),
+            uploadedAt: z.date(),
+            verifiedAt: z.date().optional(),
+          })
+        )
+        .optional(),
+    })
+    .optional(),
+  metadata: z
+    .object({
+      onboardingSource: z.enum(["self", "admin", "referral"]).optional(),
+      rating: z
+        .object({
+          average: z.number().min(0).max(5),
+          count: z.number().min(0),
+        })
+        .optional(),
+      apiRateLimit: z
+        .object({
+          limit: z.number().min(0),
+          remaining: z.number().min(0),
+          resetAt: z.date(),
+        })
+        .optional(),
+      verificationToken: z.string().optional(),
+    })
+    .optional(),
 });
 
 export const ProductZodSchema = z.object({
@@ -416,14 +443,19 @@ export const ReviewZodSchema = z.object({
 
 export const AdminZodSchema = z.object({
   email: z.string().email("Valid email is required"),
-  passwordHash: z.string(),
-  role: z.enum(["super_admin", "support", "finance", "operations"]),
-  permissions: z.array(z.string()),
-  twoFactor: z.object({
-    enabled: z.boolean(),
-    secret: z.string().optional(),
-    lastVerified: z.date().optional(),
-  }),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  name: z.string().min(1, "Name is required").optional(),
+  role: z
+    .enum(["super_admin", "support", "finance", "operations"])
+    .default("support"),
+  permissions: z.array(z.string()).optional(),
+  twoFactor: z
+    .object({
+      enabled: z.boolean().default(false),
+      secret: z.string().optional(),
+      lastVerified: z.date().optional(),
+    })
+    .optional(),
   status: z.enum(["active", "inactive", "suspended"]).default("active"),
   lastLogin: z.date().optional(),
 });
@@ -432,12 +464,14 @@ export const AuditLogZodSchema = z.object({
   action: z.enum([
     "vendor_approved",
     "vendor_suspended",
+    "vendor_updated",
     "payout_processed",
     "customer_updated",
     "order_cancelled",
     "complaint_resolved",
     "payment_processed",
     "subscription_updated",
+    "admin_updated",
   ]),
   performedBy: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid performer ID"),
   targetId: z
@@ -450,6 +484,7 @@ export const AuditLogZodSchema = z.object({
     "delivery",
     "billing",
     "payout",
+    "admin",
     "subscription",
   ]),
   details: z.object({
@@ -495,13 +530,13 @@ const CustomerSchema = new Schema<Customer & Document>(
     name: { type: String, required: true },
     email: { type: String, match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
     address: {
-      street: { type: String, required: true },
-      city: { type: String, required: true },
-      state: { type: String, required: true },
-      postalCode: { type: String, required: true },
+      street: { type: String, required: false },
+      city: { type: String, required: false },
+      state: { type: String, required: false },
+      postalCode: { type: String, required: false },
       coordinates: {
-        type: { type: String, enum: ["Point"], required: true },
-        coordinates: { type: [Number], required: true },
+        type: { type: String, enum: ["Point"], required: false },
+        coordinates: { type: [Number], required: false },
       },
       formattedAddress: String,
       deliveryInstructions: String,
@@ -511,7 +546,7 @@ const CustomerSchema = new Schema<Customer & Document>(
       timeSlot: {
         type: String,
         enum: ["morning", "afternoon", "evening"],
-        required: true,
+        required: false,
       },
       nonDeliveryDays: [{ type: Date }],
       vacationPeriods: [
@@ -542,7 +577,7 @@ const CustomerSchema = new Schema<Customer & Document>(
         },
       ],
     },
-    language: { type: String, required: true, match: /^[a-z]{2}$/ },
+    language: { type: String, match: /^[a-z]{2}$/, required: false },
     status: {
       type: String,
       enum: ["active", "inactive", "suspended"],
@@ -554,7 +589,7 @@ const CustomerSchema = new Schema<Customer & Document>(
       source: {
         type: String,
         enum: ["qr_scan", "web", "app", "admin"],
-        required: true,
+        required: false,
       },
       verificationStatus: {
         type: String,
@@ -568,9 +603,11 @@ const CustomerSchema = new Schema<Customer & Document>(
         lastUsed: Date,
       },
       i18n: {
-        timezone: { type: String, required: true },
-        currency: { type: String, required: true, match: /^[A-Z]{3}$/ },
+        timezone: { type: String, required: false },
+        currency: { type: String, match: /^[A-Z]{3}$/, required: false },
       },
+      onboardingSource: String,
+      deviceId: String,
     },
   },
   {
@@ -620,21 +657,22 @@ const VendorSchema = new Schema<Vendor & Document>(
         },
       ],
     },
-    uniqueId: { type: String, required: true, unique: true },
+    uniqueId: { type: String, unique: true, required: true }, // Required after generation
     qrCode: {
       url: { type: String, required: true },
       generatedAt: { type: Date, required: true },
       expiresAt: Date,
     },
+    lastLogin: { type: Date, default: null },
     deliverySlots: [
       {
         slot: {
           type: String,
           enum: ["morning", "afternoon", "evening"],
-          required: true,
+          required: false,
         },
-        cutoffTime: { type: String, required: true },
-        capacity: { type: Number, required: true, min: 0 },
+        cutoffTime: { type: String, required: false },
+        capacity: { type: Number, min: 0, required: false },
       },
     ],
     status: {
@@ -647,6 +685,7 @@ const VendorSchema = new Schema<Vendor & Document>(
         type: String,
         enum: ["pending", "verified", "rejected"],
         default: "pending",
+        required: true,
       },
       documents: [
         {
@@ -667,23 +706,24 @@ const VendorSchema = new Schema<Vendor & Document>(
         type: String,
         enum: ["self", "admin", "referral"],
         required: true,
+        default: "self",
       },
       rating: {
-        average: { type: Number, min: 0, max: 5, default: 0 },
-        count: { type: Number, min: 0, default: 0 },
+        average: { type: Number, min: 0, max: 5, default: 0, required: true },
+        count: { type: Number, min: 0, default: 0, required: true },
       },
       apiRateLimit: {
-        limit: { type: Number, min: 0, required: true },
-        remaining: { type: Number, min: 0, required: true },
+        limit: { type: Number, min: 0, required: true, default: 1000 },
+        remaining: { type: Number, min: 0, required: true, default: 1000 },
         resetAt: { type: Date, required: true },
       },
+      verificationToken: { type: String, required: true },
     },
   },
   {
     timestamps: true,
   }
 );
-// Add indexes after schema definition
 //VendorSchema.index({ mobileNumber: 1 }, { unique: true });
 //VendorSchema.index({ uniqueId: 1 }, { unique: true });
 //VendorSchema.index({ "shop.location.coordinates": "2dsphere" });
@@ -747,7 +787,6 @@ const ProductSchema = new Schema<Product & Document>(
     timestamps: true,
   }
 );
-// Add indexes after schema definition
 //ProductSchema.index({ vendorId: 1 });
 //ProductSchema.index({ sku: 1 }, { unique: true });
 
@@ -809,7 +848,6 @@ const DeliverySchema = new Schema<Delivery & Document>(
     timestamps: true,
   }
 );
-// Add indexes after schema definition
 //DeliverySchema.index({ customerId: 1 });
 //DeliverySchema.index({ vendorId: 1 });
 //DeliverySchema.index({ deliveryDate: 1 });
@@ -897,7 +935,6 @@ const BillingSchema = new Schema<Billing & Document>(
     timestamps: true,
   }
 );
-// Add indexes after schema definition
 //BillingSchema.index({ customerId: 1 });
 //BillingSchema.index({ vendorId: 1 });
 //BillingSchema.index({ "paymentDetails.razorpay.orderId": 1 });
@@ -955,7 +992,6 @@ const VendorPayoutSchema = new Schema<VendorPayout & Document>(
     timestamps: true,
   }
 );
-// Add indexes after schema definition
 //VendorPayoutSchema.index({ vendorId: 1 });
 //VendorPayoutSchema.index({ "razorpay.transferId": 1 });
 
@@ -1010,7 +1046,6 @@ const NotificationSchema = new Schema<Notification & Document>(
     timestamps: true,
   }
 );
-// Add indexes after schema definition
 //NotificationSchema.index({ recipientId: 1 });
 //NotificationSchema.index({ recipientType: 1 });
 
@@ -1070,7 +1105,6 @@ const ComplaintSchema = new Schema<Complaint & Document>(
     timestamps: true,
   }
 );
-// Add indexes after schema definition
 //ComplaintSchema.index({ customerId: 1 });
 //ComplaintSchema.index({ vendorId: 1 });
 //ComplaintSchema.index({ deliveryId: 1 });
@@ -1109,24 +1143,27 @@ const AdminSchema = new Schema<Admin & Document>(
       match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     },
     passwordHash: { type: String, required: true },
+    name: { type: String, required: false },
     role: {
       type: String,
       enum: ["super_admin", "support", "finance", "operations"],
+      default: "support",
       required: true,
     },
-    permissions: [{ type: String, required: true }],
+    permissions: [{ type: String, required: false }],
     twoFactor: {
-      enabled: { type: Boolean, required: true },
-      secret: String,
-      lastVerified: Date,
+      enabled: { type: Boolean, default: false, required: true },
+      secret: { type: String, required: false },
+      lastVerified: { type: Date, required: false },
     },
     status: {
       type: String,
       enum: ["active", "inactive", "suspended"],
       default: "active",
+      required: true,
     },
+    lastLogin: { type: Date, required: false },
     schemaVersion: { type: Number, required: true, default: 1 },
-    lastLogin: Date,
   },
   {
     timestamps: true,
@@ -1141,12 +1178,15 @@ const AuditLogSchema = new Schema<AuditLog & Document>(
       enum: [
         "vendor_approved",
         "vendor_suspended",
+        "vendor_updated",
         "payout_processed",
         "customer_updated",
         "order_cancelled",
         "complaint_resolved",
         "payment_processed",
         "subscription_updated",
+        "admin_created",
+        "admin_updated",
       ],
       required: true,
     },
@@ -1160,6 +1200,7 @@ const AuditLogSchema = new Schema<AuditLog & Document>(
         "delivery",
         "billing",
         "payout",
+        "admin",
         "subscription",
       ],
       required: true,
@@ -1177,7 +1218,6 @@ const AuditLogSchema = new Schema<AuditLog & Document>(
     timestamps: true,
   }
 );
-// Add indexes after schema definition
 //AuditLogSchema.index({ performedBy: 1 });
 //AuditLogSchema.index({ targetId: 1 });
 //AuditLogSchema.index({ targetType: 1 });
@@ -1214,7 +1254,6 @@ const AnalyticsSchema = new Schema<Analytics & Document>(
     timestamps: true,
   }
 );
-// Add indexes after schema definition
 //AnalyticsSchema.index({ vendorId: 1 });
 //AnalyticsSchema.index({ type: 1 });
 //AnalyticsSchema.index({ "period.startDate": 1 });
