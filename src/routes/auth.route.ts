@@ -53,7 +53,7 @@ router.post("/admin/login", adminLogin);
 router.post(
   "/admin/toggle-2fa",
   authenticate,
-  authorize(["super_admin", "support", "finance", "operations", "admin"]),
+  authorize(["super_admin", "admin"]),
   adminToggle2FA
 );
 
