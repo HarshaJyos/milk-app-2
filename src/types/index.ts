@@ -390,13 +390,19 @@ export interface AuditLog {
     | "vendor_approved"
     | "vendor_suspended"
     | "vendor_updated"
+    | "product_updated"
     | "payout_processed"
     | "customer_updated"
     | "order_cancelled"
     | "complaint_resolved"
     | "payment_processed"
     | "admin_updated"
-    | "subscription_updated";
+    | "super_admin_updated"
+    | "support_updated"
+    | "operations_updated"
+    | "finance_updated"
+    | "subscription_updated"
+    | "vendor_viewed";
   performedBy: ObjectId;
   targetId?: ObjectId;
   targetType:
@@ -404,9 +410,14 @@ export interface AuditLog {
     | "vendor"
     | "delivery"
     | "billing"
+    | "product"
     | "payout"
     | "admin"
-    | "subscription";
+    | "subscription"
+    | "super_admin"
+    | "support"
+    | "operations"
+    | "finance";
   details: {
     before?: Record<string, any>;
     after?: Record<string, any>;

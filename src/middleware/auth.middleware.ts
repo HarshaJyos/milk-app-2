@@ -56,7 +56,7 @@ export const authenticate = async (
     if (
       !user ||
       (decoded.role === "vendor" && user.status !== "approved") ||
-      user.status !== "active"
+      (decoded.role !== "vendor" && user.status !== "active")
     ) {
       await redisClient.del(`session:${decoded.role}:${decoded.id}`);
       res.status(StatusCodes.UNAUTHORIZED).json({

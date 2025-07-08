@@ -699,11 +699,35 @@ export const adminVerify2FA = async (
     await admin.save();
 
     const token = jwt.sign(
-      { id: admin._id.toString(), role: "admin" },
+      { id: admin._id.toString(), role: admin.role as string },
       config.jwt.secret as string,
       { expiresIn: config.jwt.expiresIn }
     );
-    await redisClient.setEx(`session:admin:${admin._id}`, 24 * 60 * 60, token);
+    if (admin.role === "super_admin") {
+      await redisClient.setEx(
+        `session:super_admin:${admin._id}`,
+        24 * 60 * 60,
+        token
+      );
+    } else if (admin.role === "support") {
+      await redisClient.setEx(
+        `session:support:${admin._id}`,
+        24 * 60 * 60,
+        token
+      );
+    } else if (admin.role === "finance") {
+      await redisClient.setEx(
+        `session:finance:${admin._id}`,
+        24 * 60 * 60,
+        token
+      );
+    } else if (admin.role === "operations") {
+      await redisClient.setEx(
+        `session:operations:${admin._id}`,
+        24 * 60 * 60,
+        token
+      );
+    }
 
     await AuditLogModel.create({
       action: "admin_updated",
@@ -790,11 +814,35 @@ export const adminLogin = async (
     }
 
     const token = jwt.sign(
-      { id: admin._id.toString(), role: "admin" },
+      { id: admin._id.toString(), role: admin.role as string },
       config.jwt.secret as string,
       { expiresIn: config.jwt.expiresIn }
     );
-    await redisClient.setEx(`session:admin:${admin._id}`, 24 * 60 * 60, token);
+    if (admin.role === "super_admin") {
+      await redisClient.setEx(
+        `session:super_admin:${admin._id}`,
+        24 * 60 * 60,
+        token
+      );
+    } else if (admin.role === "support") {
+      await redisClient.setEx(
+        `session:support:${admin._id}`,
+        24 * 60 * 60,
+        token
+      );
+    } else if (admin.role === "finance") {
+      await redisClient.setEx(
+        `session:finance:${admin._id}`,
+        24 * 60 * 60,
+        token
+      );
+    } else if (admin.role === "operations") {
+      await redisClient.setEx(
+        `session:operations:${admin._id}`,
+        24 * 60 * 60,
+        token
+      );
+    }
 
     admin.lastLogin = new Date();
     await admin.save();
@@ -1061,7 +1109,7 @@ export const refreshToken = async (
 };
 
 // Rate Limit Check Middleware (used internally)
-const checkRateLimit = async (
+export const checkRateLimit = async (
   key: string,
   limit: number,
   windowMs: number

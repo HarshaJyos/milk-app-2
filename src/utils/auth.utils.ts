@@ -43,15 +43,57 @@ export const uploadDocument = async (
   mimeType: string
 ): Promise<string> => {
   try {
+    // Verify container exists
+    const containerExists = await containerClient.exists();
+    if (!containerExists) {
+      logger.error("Azure container 'momemilkapp-files' does not exist");
+      throw new Error("Storage container not found");
+    }
+
+    // Validate buffer
+    if (!buffer || buffer.length === 0) {
+      logger.error("Empty or invalid buffer provided for upload");
+      throw new Error("Invalid file buffer");
+    }
+
     const blobName = `documents/${uuidv4()}_${originalName}`;
+    logger.debug(
+      `Uploading file to Azure: ${blobName}, MIME: ${mimeType}, Size: ${buffer.length} bytes`
+    );
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
     await blockBlobClient.upload(buffer, buffer.length, {
       blobHTTPHeaders: { blobContentType: mimeType },
     });
+    logger.info(`Successfully uploaded file to Azure: ${blobName}`);
     return blockBlobClient.url;
-  } catch (error) {
-    logger.error("Document upload error:", error);
-    throw new Error("Failed to upload document");
+  } catch (error: any) {
+    logger.error("Document upload error:", {
+      message: error.message,
+      stack: error.stack,
+      blobName: `documents/${uuidv4()}_${originalName}`,
+      mimeType,
+      bufferLength: buffer?.length || 0,
+    });
+    throw new Error(`Failed to upload document: ${error.message}`);
+  }
+};
+
+export const deleteDocument = async (blobUrl: string): Promise<void> => {
+  try {
+    const blobName = blobUrl.split("momemilkapp-files/")[1];
+    if (!blobName) {
+      throw new Error("Invalid blob URL");
+    }
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    await blockBlobClient.deleteIfExists();
+    logger.info(`Successfully deleted file from Azure: ${blobName}`);
+  } catch (error: any) {
+    logger.error("Document deletion error:", {
+      message: error.message,
+      stack: error.stack,
+      blobUrl,
+    });
+    throw new Error(`Failed to delete document: ${error.message}`);
   }
 };
 
